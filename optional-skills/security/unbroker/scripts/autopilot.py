@@ -20,11 +20,11 @@ only reads. Executing + recording stays with the agent (and the record command).
 from __future__ import annotations
 
 import datetime as _dt
-import os
 from pathlib import Path
 
 import brokers as brokers_mod
 import emailer
+import config as config_mod
 import ledger as ledger_mod
 import paths
 import registry
@@ -135,11 +135,12 @@ def _optout_action(row: dict, playbook: dict[str, dict], subject_id: str, dossie
     if email_addr and can_email:
         kind = request_kind(dossier, deletion.get("kinds"))
         via = "browser" if email_mode == "browser" else "smtp"
-        then = ("send-email records it + returns a recipient-locked payload; compose and send it in "
-                "the operator's webmail via browser_exec, then `verify-link` on the reply and open the link"
+        then = ("compose and send the recipient-locked payload in the operator's webmail; read back "
+                "the exact Sent message, then record submitted with disclosed fields/channel; "
+                "review any verify-link candidate's provenance and subject/request identity before opening"
                 if via == "browser" else
-                "state auto-records as submitted; poll-verification picks up their verification reply, "
-                "open its link, then record")
+                "state auto-records as submitted; poll-verification returns candidates only: authenticate "
+                "provenance, subject/request identity and final official destination before opening")
         return {
             "type": "optout_email_send",
             "broker_id": bid, "broker_name": row.get("broker_name"), "tier": tier,
@@ -203,7 +204,7 @@ def _optout_action(row: dict, playbook: dict[str, dict], subject_id: str, dossie
 
 def next_actions(dossier: dict, brokers_list: list[dict], cfg: dict,
                  ledger: dict | None = None, env: dict | None = None) -> dict:
-    env = os.environ if env is None else env
+    env = config_mod.dotenv_env() if env is None else env
     ledger = ledger or {}
     subject_id = dossier.get("subject_id", "")
     autonomy = cfg.get("autonomy", "full")
