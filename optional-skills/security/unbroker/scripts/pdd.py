@@ -627,7 +627,8 @@ def cmd_verify_link(args) -> None:
     IMAP-free counterpart to `poll-verification`: the agent opens the broker's confirmation email
     in the operator's webmail, pastes the body here, and gets the anti-phishing-scored link back.
     """
-    _require_subject(args.subject)
+    d = _require_subject(args.subject)
+    dossier_mod.require_authorized(d)
     b = brokers_mod.get(args.broker)
     if not b:
         sys.exit(f"error: unknown broker {args.broker!r}")

@@ -17,6 +17,15 @@ import ledger
 import pdd
 import emailer
 import email_modes
+import autopilot
+import brokers
+
+
+@pytest.fixture(autouse=True)
+def isolated_capability_environment(tmp_path, monkeypatch):
+    monkeypatch.setenv("HERMES_HOME", str(tmp_path / "hermes"))
+    for key in config.CAPABILITY_ENV_KEYS:
+        monkeypatch.delenv(key, raising=False)
 
 
 def test_dotenv_only_exposes_declared_capabilities(tmp_path, monkeypatch):
@@ -165,6 +174,28 @@ def test_setup_auto_preserves_explicit_safety_choices(tmp_path, monkeypatch):
     result = config.auto_configure({"EMAIL_ADDRESS": "test@gmail.com", "EMAIL_PASSWORD": "dummy"})
     assert result["autonomy"] == "assisted"
     assert result["email_mode"] == "browser"
+
+
+@pytest.mark.parametrize("mode", ["browser", "programmatic"])
+def test_verification_queue_requires_provenance_review(pending_case, mode):
+    ledger.transition("sub_test", "radaris", "submitted")
+    cfg = {**config.DEFAULT_CONFIG, "email_mode": mode}
+    env = {} if mode == "browser" else {"EMAIL_ADDRESS": "test@gmail.com", "EMAIL_PASSWORD": "dummy"}
+    result = autopilot.next_actions(dossier.load("sub_test"), [brokers.get("radaris")],
+                                    cfg, ledger.load("sub_test"), env=env)
+    action = next(a for a in result["actions"] if a["type"] == "poll_verification")
+    instruction = action.get("then") or action["how"]
+    assert "provenance" in instruction
+    assert "pending request" in instruction
+    assert "final official destination" in instruction
+
+
+def test_verify_link_requires_subject_authorization(pending_case, monkeypatch):
+    require = MagicMock(side_effect=ValueError("consent required"))
+    monkeypatch.setattr(pdd.dossier_mod, "require_authorized", require)
+    with pytest.raises(SystemExit, match="consent required"):
+        pdd.main(["verify-link", "sub_test", "radaris", "--text", "https://radaris.com/verify"])
+    require.assert_called_once()
 
 
 def test_invalid_submission_state_never_sends(pending_case, monkeypatch):

@@ -283,16 +283,18 @@ def next_actions(dossier: dict, brokers_list: list[dict], cfg: dict,
                     "type": "poll_verification", "via": "imap",
                     "broker_id": bid,
                     "command": f"python3 scripts/pdd.py poll-verification {subject_id} --broker {bid}",
-                    "then": "open the returned link with browser_exec IN THE SAME AGENT BROWSER (sessions are "
-                            "browser-bound), complete the flow, then record: awaiting_processing",
+                    "then": "Candidate only: authenticate email provenance, bind it to the subject's pending request "
+                            "and inspect the final official destination before opening in the same agent browser; "
+                            "complete the flow, then record: awaiting_processing",
                 })
             elif email_mode == "browser":
                 actions.append({
                     "type": "poll_verification", "via": "browser", "broker_id": bid,
                     "how": "open the broker's confirmation email in the operator's logged-in webmail "
                            f"(browser_exec), then `python3 scripts/pdd.py verify-link {subject_id} {bid} "
-                           "--text '<email body>'` to score the link, open it with browser_exec in the SAME "
-                           "browser, then record awaiting_processing",
+                           "--text '<email body>'` for a candidate only: authenticate email provenance, bind it "
+                           "to the subject's pending request and inspect the final official destination before "
+                           "opening in the same browser, then record awaiting_processing",
                 })
             else:
                 digest.append(_digest(
